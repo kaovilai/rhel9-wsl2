@@ -1,0 +1,45 @@
+name: Export Container
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  export_container:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Setup Docker
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y docker.io
+
+    - name: Export container
+      run: |
+        docker run --name rhel9 redhat/ubi9
+        mkdir -p wslsources
+        docker export -o wslsources/rhel9.tar.gz rhel9
+
+    - name: Create GitHub release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: rhel9-container-${{ github.run_number }}
+        release_name: RHEL9 Container ${{ github.run_number }}
+        draft: false
+        prerelease: false
+
+    - name: Upload exported container to release
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: wslsources/rhel9.tar.gz
+        asset_name: rhel9.tar.gz
+        tag: ${{ steps.create_release.outputs.tag_name }}
+        overwrite: true
